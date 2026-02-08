@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zar Tıkırtı: Incremental Dice Clicker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12;
+      --panel: #151a24;
+      --accent: #7cff6b;
+      --accent-2: #67b7ff;
+      --danger: #ff6b6b;
+      --text: #e9eef5;
+      --muted: #99a3b3;
+      --border: #293144;
+      --glow: 0 0 12px rgba(124, 255, 107, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #121826, #07090f 55%, #05060a 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .wrap {
+      width: min(1100px, 100%);
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(21, 26, 36, 0.95), rgba(10, 14, 22, 0.95));
+      border-radius: 16px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      letter-spacing: 0.5px;
+    }
+
+    header .sub {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(124, 255, 107, 0.08), transparent 55%);
+      pointer-events: none;
+    }
+
+    .dice-area {
+      display: grid;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .dice {
+      width: 160px;
+      height: 160px;
+      border-radius: 24px;
+      background: linear-gradient(145deg, #1d2433, #121826);
+      border: 2px solid #2e394d;
+      display: grid;
+      place-items: center;
+      font-size: 64px;
+      font-weight: 700;
+      box-shadow: 0 20px 30px rgba(3, 6, 12, 0.6), var(--glow);
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      user-select: none;
+    }
+
+    .dice:active {
+      transform: translateY(3px) scale(0.98);
+      box-shadow: 0 12px 22px rgba(3, 6, 12, 0.6);
+    }
+
+    .dice.roll {
+      animation: shake 0.35s ease;
+    }
+
+    @keyframes shake {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(4deg) scale(1.03); }
+      50% { transform: rotate(-4deg) scale(0.97); }
+      75% { transform: rotate(3deg) scale(1.02); }
+      100% { transform: rotate(0deg) scale(1); }
+    }
+
+    .stats {
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      background: rgba(10, 14, 22, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .stats .line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .stats .line span:last-child {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .big {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #243047, #1a2433);
+      border: 1px solid #2f3d55;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      border-color: var(--accent-2);
+      color: var(--accent-2);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--muted);
+    }
+
+    .upgrade {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 12px;
+      background: rgba(10, 14, 22, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .upgrade h3 {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .upgrade p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .upgrade .meta {
+      font-size: 12px;
+      color: var(--accent-2);
+      margin-top: 6px;
+    }
+
+    .log {
+      display: grid;
+      gap: 8px;
+      max-height: 240px;
+      overflow: auto;
+      font-size: 12px;
+      padding-right: 6px;
+    }
+
+    .log div {
+      background: rgba(8, 11, 18, 0.7);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      background: rgba(124, 255, 107, 0.12);
+      border: 1px solid rgba(124, 255, 107, 0.3);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    footer {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-direction: column;
+        gap: 6px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>Zar Tıkırtı: Incremental Dice Clicker</h1>
+        <div class="sub">Tıkla. Güçlen. Otomatikleştir.</div>
+      </div>
+      <div class="sub">
+        <div class="badge">Kural: 6 gelirse x2 şans</div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="dice-area">
+        <div class="dice" id="dice">⚄</div>
+        <div class="stats">
+          <div class="line"><span>Toplam Zar Altını</span><span class="big" id="gold">0</span></div>
+          <div class="line"><span>Son Zar</span><span id="lastRoll">-</span></div>
+          <div class="line"><span>Çarpan</span><span id="multiplier">x1.0</span></div>
+          <div class="line"><span>Pasif Üretim</span><span id="passive">0 /sn</span></div>
+          <div class="line"><span>Kritik Şans</span><span id="crit">0%</span></div>
+          <div class="line"><span>Kritik Güç</span><span id="critPower">x1.5</span></div>
+        </div>
+        <div class="button-row">
+          <button id="rollBtn">Zarı At</button>
+          <button id="autoToggle">Oto Atış: Kapalı</button>
+          <button id="resetBtn" class="danger">Sert Sıfırla</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="upgrade">
+        <div>
+          <h3>Çelik Zar</h3>
+          <p>Atış başına +1 düz altın.</p>
+          <div class="meta">Seviye: <span id="steelLevel">0</span> • Maliyet: <span id="steelCost">15</span></div>
+        </div>
+        <button id="steelBuy">Satın Al</button>
+      </div>
+      <div class="upgrade">
+        <div>
+          <h3>Şans Tılsımı</h3>
+          <p>Kritik şansı artırır. Kritik = atış x kritik güç.</p>
+          <div class="meta">Seviye: <span id="luckLevel">0</span> • Maliyet: <span id="luckCost">45</span></div>
+        </div>
+        <button id="luckBuy">Satın Al</button>
+      </div>
+      <div class="upgrade">
+        <div>
+          <h3>Otomat Zar</h3>
+          <p>Pasif üretim: her saniye otomatik atış.</p>
+          <div class="meta">Seviye: <span id="autoLevel">0</span> • Maliyet: <span id="autoCost">60</span></div>
+        </div>
+        <button id="autoBuy">Satın Al</button>
+      </div>
+      <div class="upgrade">
+        <div>
+          <h3>Manyetik Çarpan</h3>
+          <p>Toplam çarpanı artırır.</p>
+          <div class="meta">Seviye: <span id="multiLevel">0</span> • Maliyet: <span id="multiCost">120</span></div>
+        </div>
+        <button id="multiBuy">Satın Al</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Komuta Günlüğü</h3>
+      <div class="log" id="log"></div>
+    </section>
+
+    <section class="panel">
+      <h3>Net Algoritma</h3>
+      <ol>
+        <li>Zara tıkla veya <strong>Zarı At</strong> ile tetikle.</li>
+        <li>Atış sonucunu altınla çarp.</li>
+        <li>Yükseltmeleri al, pasif üretimi aç.</li>
+        <li>Otomatik atış açıkken sürekli büyü.</li>
+      </ol>
+    </section>
+
+    <footer>Tek dosya. Saf HTML + CSS + JS. Harici yok.</footer>
+  </main>
+
+  <script>
+    const state = {
+      gold: 0,
+      lastRoll: 0,
+      flatBonus: 0,
+      multiplier: 1,
+      critChance: 0,
+      critPower: 1.5,
+      passive: 0,
+      autoEnabled: false,
+      upgrades: {
+        steel: { level: 0, cost: 15, scale: 1.35 },
+        luck: { level: 0, cost: 45, scale: 1.4 },
+        auto: { level: 0, cost: 60, scale: 1.45 },
+        multi: { level: 0, cost: 120, scale: 1.5 }
+      }
+    };
+
+    const diceFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+
+    const el = {
+      dice: document.getElementById("dice"),
+      gold: document.getElementById("gold"),
+      lastRoll: document.getElementById("lastRoll"),
+      multiplier: document.getElementById("multiplier"),
+      passive: document.getElementById("passive"),
+      crit: document.getElementById("crit"),
+      critPower: document.getElementById("critPower"),
+      rollBtn: document.getElementById("rollBtn"),
+      autoToggle: document.getElementById("autoToggle"),
+      resetBtn: document.getElementById("resetBtn"),
+      steelLevel: document.getElementById("steelLevel"),
+      steelCost: document.getElementById("steelCost"),
+      luckLevel: document.getElementById("luckLevel"),
+      luckCost: document.getElementById("luckCost"),
+      autoLevel: document.getElementById("autoLevel"),
+      autoCost: document.getElementById("autoCost"),
+      multiLevel: document.getElementById("multiLevel"),
+      multiCost: document.getElementById("multiCost"),
+      steelBuy: document.getElementById("steelBuy"),
+      luckBuy: document.getElementById("luckBuy"),
+      autoBuy: document.getElementById("autoBuy"),
+      multiBuy: document.getElementById("multiBuy"),
+      log: document.getElementById("log")
+    };
+
+    function format(num) {
+      return Math.floor(num).toLocaleString("tr-TR");
+    }
+
+    function log(message) {
+      const item = document.createElement("div");
+      item.textContent = message;
+      el.log.prepend(item);
+      const items = el.log.querySelectorAll("div");
+      if (items.length > 8) {
+        items[items.length - 1].remove();
+      }
+    }
+
+    function rollDice(source = "Tık") {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      state.lastRoll = roll;
+      const base = roll + state.flatBonus;
+      const critHit = Math.random() * 100 < state.critChance || roll === 6;
+      const totalMultiplier = state.multiplier * (critHit ? state.critPower : 1);
+      const gain = base * totalMultiplier;
+      state.gold += gain;
+
+      el.dice.classList.add("roll");
+      setTimeout(() => el.dice.classList.remove("roll"), 300);
+      el.dice.textContent = diceFaces[roll - 1];
+
+      const critTag = critHit ? " (KRİTİK)" : "";
+      log(`${source}: ${roll} geldi, +${format(gain)} altın${critTag}.`);
+      render();
+    }
+
+    function buyUpgrade(key, applyFn) {
+      const upgrade = state.upgrades[key];
+      if (state.gold < upgrade.cost) {
+        log("Yetersiz altın.");
+        return;
+      }
+      state.gold -= upgrade.cost;
+      upgrade.level += 1;
+      upgrade.cost = Math.ceil(upgrade.cost * upgrade.scale);
+      applyFn(upgrade.level);
+      log("Yükseltme alındı.");
+      render();
+    }
+
+    function render() {
+      el.gold.textContent = format(state.gold);
+      el.lastRoll.textContent = state.lastRoll ? `${state.lastRoll}` : "-";
+      el.multiplier.textContent = `x${state.multiplier.toFixed(2)}`;
+      el.passive.textContent = `${state.passive.toFixed(1)} /sn`;
+      el.crit.textContent = `${state.critChance.toFixed(1)}%`;
+      el.critPower.textContent = `x${state.critPower.toFixed(2)}`;
+
+      el.steelLevel.textContent = state.upgrades.steel.level;
+      el.steelCost.textContent = format(state.upgrades.steel.cost);
+      el.luckLevel.textContent = state.upgrades.luck.level;
+      el.luckCost.textContent = format(state.upgrades.luck.cost);
+      el.autoLevel.textContent = state.upgrades.auto.level;
+      el.autoCost.textContent = format(state.upgrades.auto.cost);
+      el.multiLevel.textContent = state.upgrades.multi.level;
+      el.multiCost.textContent = format(state.upgrades.multi.cost);
+
+      el.steelBuy.disabled = state.gold < state.upgrades.steel.cost;
+      el.luckBuy.disabled = state.gold < state.upgrades.luck.cost;
+      el.autoBuy.disabled = state.gold < state.upgrades.auto.cost;
+      el.multiBuy.disabled = state.gold < state.upgrades.multi.cost;
+
+      el.autoToggle.textContent = `Oto Atış: ${state.autoEnabled ? "Açık" : "Kapalı"}`;
+    }
+
+    el.dice.addEventListener("click", () => rollDice("Tık"));
+    el.rollBtn.addEventListener("click", () => rollDice("Buton"));
+
+    el.steelBuy.addEventListener("click", () =>
+      buyUpgrade("steel", (level) => {
+        state.flatBonus = level;
+      })
+    );
+
+    el.luckBuy.addEventListener("click", () =>
+      buyUpgrade("luck", (level) => {
+        state.critChance = Math.min(40, level * 2.5);
+        state.critPower = 1.5 + level * 0.15;
+      })
+    );
+
+    el.autoBuy.addEventListener("click", () =>
+      buyUpgrade("auto", (level) => {
+        state.passive = level * 0.8;
+      })
+    );
+
+    el.multiBuy.addEventListener("click", () =>
+      buyUpgrade("multi", (level) => {
+        state.multiplier = 1 + level * 0.2;
+      })
+    );
+
+    el.autoToggle.addEventListener("click", () => {
+      state.autoEnabled = !state.autoEnabled;
+      log(state.autoEnabled ? "Oto atış aktif." : "Oto atış kapandı.");
+      render();
+    });
+
+    el.resetBtn.addEventListener("click", () => {
+      if (!confirm("Her şey sıfırlansın mı?")) return;
+      Object.assign(state, {
+        gold: 0,
+        lastRoll: 0,
+        flatBonus: 0,
+        multiplier: 1,
+        critChance: 0,
+        critPower: 1.5,
+        passive: 0,
+        autoEnabled: false,
+        upgrades: {
+          steel: { level: 0, cost: 15, scale: 1.35 },
+          luck: { level: 0, cost: 45, scale: 1.4 },
+          auto: { level: 0, cost: 60, scale: 1.45 },
+          multi: { level: 0, cost: 120, scale: 1.5 }
+        }
+      });
+      el.log.innerHTML = "";
+      log("Sıfırlandı. Baştan başla.");
+      render();
+    });
+
+    setInterval(() => {
+      if (!state.autoEnabled || state.passive <= 0) return;
+      const ticks = state.passive;
+      for (let i = 0; i < Math.floor(ticks); i += 1) {
+        rollDice("Oto");
+      }
+      const remainder = ticks - Math.floor(ticks);
+      if (Math.random() < remainder) {
+        rollDice("Oto");
+      }
+    }, 1000);
+
+    render();
+    log("Sistem hazır. İlk atışı yap.");
+  </script>
+</body>
+</html>
